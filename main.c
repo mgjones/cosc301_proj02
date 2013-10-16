@@ -15,13 +15,17 @@
 int main(int argc, char **argv) {
 
     printf("main.c, so lonely.  no code here yet :-(\n");
+	printf ("%s", prompt );
+	fflush ( stdout ); /* if you want the prompt to immediately appear ,
+						call fflush . it ’flushes ’ the output to screen */
 
+	char buffer [1024];
+	while ( fgets(buffer , 1024 , stdin) != NULL) {
+	// process current command line in buffer
 
+	
+	}
 
-
-// new comment
-//ROUND ROBIN!
-// second try!
     return 0;
 }
 
