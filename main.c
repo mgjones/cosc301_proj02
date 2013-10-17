@@ -12,9 +12,18 @@
 #include <poll.h>
 #include <signal.h>
 
-char **tokenify(const char *str) {
+char **tokenify(const char *str,int swap) {
+	const char *sep;
+	
+	if(swap == 0){
+		sep = " \t\n";
+	} 
+	else if(swap == 1){
+		sep = ";";
+	} else {
+		sep = "#";
+	}
 
-	const char *sep = ";";
 	char *temp, *c;
 	char *s = strdup(str);
 
@@ -29,7 +38,6 @@ char **tokenify(const char *str) {
 
 	words[count] = NULL;
 	free(s);
-	
 	return words;
 }
 
@@ -42,7 +50,17 @@ int main(int argc, char **argv) {
 
 	char buffer [1024];
 	while ( fgets(buffer , 1024 , stdin) != NULL) {
-	// process current command line in buffer
+		// process current command line in buffer
+
+		char** line = tokenify(buffer,3); //cleans all comments out
+		line = tokenify(line[0],1); // parses line into commands
+		
+		int i = 0;
+		while(line[i] != NULL){
+			char** command = tokenify(line[i],0); // parses a command
+			// call on execv
+			i++;
+		}
 		
 
 	
