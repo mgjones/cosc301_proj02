@@ -14,10 +14,10 @@
 
 char **tokenify(const char *str,int swap) {
 	const char *sep;
-	
+
 	if(swap == 0){
 		sep = " \t\n";
-	} 
+	}
 	else if(swap == 1){
 		sep = ";";
 	} else {
@@ -41,6 +41,18 @@ char **tokenify(const char *str,int swap) {
 	return words;
 }
 
+void exit(const char *str){
+	// not sure if this makes sense
+
+}
+
+
+
+
+
+
+
+
 int main(int argc, char **argv) {
 	char* prompt = "mjng$ ";
 
@@ -54,16 +66,16 @@ int main(int argc, char **argv) {
 
 		char** line = tokenify(buffer,3); //cleans all comments out
 		line = tokenify(line[0],1); // parses line into commands
-		
+
 		int i = 0;
 		while(line[i] != NULL){
 			char** command = tokenify(line[i],0); // parses a command
 			// call on execv
 			i++;
 		}
-		
 
-	
+
+
 	}
 
     return 0;
