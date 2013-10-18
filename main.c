@@ -53,9 +53,9 @@ int check_mode(char **line, int mode_choice){
 				}
 			} else {
 				//there is a parameter
-				if (strncmp(command[1], "sequential", 10) == 0 || strncmp(command[1], "s", 1) == 0){
+				if (strncmp(command[1], "sequential", 10) == 0 || strncmp(command[1], "s", sizeof(command[1])) == 0){
 					mode_choice = 0;
-				} else if (strncmp(command[1], "parallel", 10) == 0 || strncmp(command[1], "p", 1) == 0){
+				} else if (strncmp(command[1], "parallel", 10) == 0 || strncmp(command[1], "p", sizeof(command[1])) == 0){
 					mode_choice = 1;				
 				}
 			}// end else
@@ -109,12 +109,14 @@ int main(int argc, char **argv) {
 		line = tokenify(line[0],1); // parses line into commands
 		mode_choice = check_mode(line, mode_choice);
 		
+	/*
 		// choose mode to run processes
 		if (mode_choice == 0){
 			sequential(line);		
 		} else {
 			parallel(line);	
 		}
+	*/
 
 		printf ("%s", prompt );
 
