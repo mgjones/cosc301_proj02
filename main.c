@@ -87,8 +87,24 @@ void sequential(char **line) {
 }
 
 void parallel(char **line) {
-	// code goes here
-	printf("we're inside god's kangaroo pouch\n");
+
+	pid_t child;
+	int i = 0;
+	while(line[i] != NULL){
+		char** command = tokenify(line[i],0); // parses a command			
+		child = fork();
+
+		if (child == 0){
+			// this is child process
+			execv(command[0],command);
+			exit(1); 					//exit out of child process if execv fails
+		} else {
+			// this is parent process
+			int *status = NULL;
+			waitpid(child,status,WNOHANG);
+		}
+		i++;
+	}
 	return;
 }
 
@@ -109,15 +125,15 @@ int main(int argc, char **argv) {
 		line = tokenify(line[0],1); // parses line into commands
 		mode_choice = check_mode(line, mode_choice);
 		
-	/*
+	
 		// choose mode to run processes
 		if (mode_choice == 0){
 			sequential(line);		
 		} else {
 			parallel(line);	
 		}
-	*/
-
+	
+		
 		printf ("%s", prompt );
 
 
