@@ -52,7 +52,7 @@ int check_mode(char **line, int mode_choice){
 					printf("mode: Parallel\n");
 				}
 			} else {
-				//there is a parameter
+				// there is a parameter
 				if (strncmp(command[1], "sequential", 10) == 0 || strncmp(command[1], "s", 1) == 0){
 					mode_choice = 0;
 				} else if (strncmp(command[1], "parallel", 8) == 0 || strncmp(command[1], "p", 1) == 0){
@@ -66,7 +66,7 @@ int check_mode(char **line, int mode_choice){
 
 
 
-void sequential(char **line) {
+void sequential(char **line, int* mode_choice) {
 
 	pid_t child;
 	int i = 0;
@@ -76,6 +76,15 @@ void sequential(char **line) {
 
 		if (child == 0){
 			// this is child process
+			int mode_before = *mode_choice;
+			char** new_line = &line[i];
+			*mode_choice = check_mode(new_line, *mode_choice);
+
+			if (mode_before != *mode_choice){
+				char** new_line = &line[i+1];
+				parallel(new_line, mode_choice);
+			}
+
 			execv(command[0],command);
 		} else {
 			// this is parent process
@@ -94,19 +103,27 @@ int get_size(char** array){
 	return i;
 }
 
-void parallel(char **line) {
+void parallel(char **line, int* mode_choice) {
 
 	pid_t child;
 	int i = 0;
-	int child_pids[get_size(line)];
+	pid_t child_pids[get_size(line)];
 	while(line[i] != NULL){
 		char** command = tokenify(line[i],0); // parses a command			
 		child = fork();
 
 		if (child == 0){
 			// this is child process
+			int mode_before = *mode_choice;
+			*mode_choice = check_mode(line, *mode_choice);
+			
+			if (mode_before != *mode_choice){ 
+				char** new_line = &line[i+1];
+				sequential(new_line, mode_choice);
+			}
+
 			execv(command[0],command);
-			exit(1); 					//exit out of child process if execv fails
+			exit(1); 
 		} else {
 			// this is parent -- storing child pid into array
 			child_pids[i] = child;
@@ -118,6 +135,7 @@ void parallel(char **line) {
 	int* status = NULL;
 	while(line[i] != NULL){
 		waitpid(child_pids[i],status,0);
+		i++;
 	}	
 	return;
 }
@@ -126,6 +144,7 @@ void parallel(char **line) {
 int main(int argc, char **argv) {
 	char* prompt = "mjng$ ";
 	int mode_choice = 0	;
+	int* mode_choicep = &mode_choice;
 
 	printf ("%s", prompt );
 	fflush ( stdout ); /* if you want the prompt to immediately appear ,
@@ -142,9 +161,9 @@ int main(int argc, char **argv) {
 	
 		// choose mode to run processes
 		if (mode_choice == 0){
-			sequential(line);		
+			sequential(line,mode_choicep);
 		} else {
-			parallel(line);	
+			parallel(line,mode_choicep);	
 		}
 	
 		
@@ -155,4 +174,17 @@ int main(int argc, char **argv) {
 
     return 0;
 }
+
+
+
+//								 //
+// SMALL PROBLEMS WE HAVE TO FIX // 
+//								 //
+//
+// line 56/line 58 -- if user types in mode p sequentialllyyl..it still registers because it only
+//					  compares if first 10 characters (size of sequential) in the user input.
+//					  what should we do.
+//
+// general -- does parallel really work?
+
 
