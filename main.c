@@ -53,13 +53,14 @@ int check_mode(char **line, int mode_choice){
 				}
 			} else {
 				//there is a parameter
-				if (strncmp(command[1], "sequential", 10) == 0 || strncmp(command[1], "s", sizeof(command[1])) == 0){
+				if (strncmp(command[1], "sequential", 10) == 0 || strncmp(command[1], "s", 1) == 0){
 					mode_choice = 0;
-				} else if (strncmp(command[1], "parallel", 10) == 0 || strncmp(command[1], "p", sizeof(command[1])) == 0){
+				} else if (strncmp(command[1], "parallel", 8) == 0 || strncmp(command[1], "p", 1) == 0){
 					mode_choice = 1;				
 				}
 			}// end else
 	}// end first if
+	
 	return mode_choice;
 }
 
@@ -86,10 +87,18 @@ void sequential(char **line) {
 	return;
 }
 
+int get_size(char** array){
+
+	int i;
+	for(i=0;array[i] != NULL;i++){}
+	return i;
+}
+
 void parallel(char **line) {
 
 	pid_t child;
 	int i = 0;
+	int child_pids[get_size(line)];
 	while(line[i] != NULL){
 		char** command = tokenify(line[i],0); // parses a command			
 		child = fork();
@@ -99,19 +108,24 @@ void parallel(char **line) {
 			execv(command[0],command);
 			exit(1); 					//exit out of child process if execv fails
 		} else {
-			// this is parent process
-			int *status = NULL;
-			waitpid(child,status,WNOHANG);
-		}
+			// this is parent -- storing child pid into array
+			child_pids[i] = child;
+		}						
 		i++;
 	}
+	child_pids[i] = NULL;
+	i = 0;
+	int* status = NULL;
+	while(line[i] != NULL){
+		waitpid(child_pids[i],status,0);
+	}	
 	return;
 }
 
 
 int main(int argc, char **argv) {
 	char* prompt = "mjng$ ";
-	int mode_choice = 0;
+	int mode_choice = 0	;
 
 	printf ("%s", prompt );
 	fflush ( stdout ); /* if you want the prompt to immediately appear ,
