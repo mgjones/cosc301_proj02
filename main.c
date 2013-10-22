@@ -12,6 +12,8 @@
 #include <poll.h>
 #include <signal.h>
 
+int mode = 0; // mode is set to sequential
+
 char **tokenify(const char *str,int swap) {
 	const char *sep;
 
@@ -23,10 +25,8 @@ char **tokenify(const char *str,int swap) {
 	}
 
 	char *temp, *c;
-	char *s = strdup(str);
-
+	char *s = strdup(str)
 	char **words = malloc(strlen(s) * sizeof(char));
-
 	int count = 0;
 
 	for (c = strtok_r(s, sep, &temp); c != NULL; c = strtok_r(NULL, sep, &temp)){
@@ -39,49 +39,169 @@ char **tokenify(const char *str,int swap) {
 	return words;
 }
 
-int check_mode(char **line, int mode_choice){
+int check_mode(char **line){
 	
 	char** command = tokenify(line[0],0);
 	if (strncmp(command[0],"mode",4) == 0) {
 			if (command[1] == NULL){
-				if (mode_choice == 0) {
+				if (mode == 0) {
 					printf("mode: Sequential\n");
+					return 0;
 				} else {
 					printf("mode: Parallel\n");
+					return 0;
 				}
 			} else {
 				// there is a parameter
 				if (strncmp(command[1], "sequential", 10) == 0 || strncmp(command[1], "s", 1) == 0){
-					mode_choice = 0;
+					mode = 0;
+					return 0;
 				} else if (strncmp(command[1], "parallel", 8) == 0 || strncmp(command[1], "p", 1) == 0){
-					mode_choice = 1;				
+					mode = 1;
+					return 0;				
 				}
-			}// end else
-	}// end first if
+			}
+	}
 	
-	return mode_choice;
+	return -1;
 }
 
-
+int check_exit(char** cmd){
+	if(strncmp(cmd[0],"exit",4) == 0){
+		 return -1;
+	}
+	return 0;
+}
 
 int get_size(char** array){
-
 	int i;
 	for(i=0;array[i] != NULL;i++){}
 	return i;
 }
 
-char **remove_hash(char **cmd_list){
+char *remove_hash(char *buffer){
 	int i = 0;
-	while (cmd_list[i] != NULL){
-		if (cmd_list[i] == '#'){
-			cmd_list[i] = NULL;
-
+	while (buffer[i] != '\0'){
+		if (buffer[i] == '#'){
+			buffer[i] = '\0';
 		}
 		i++;
 	}
+	
+	return buffer;
 
-	return cmd_list;
+}
 
+int parallel(char** cmd_list){
+	int isExit = 0;
+	pid_t child_pids[get_size(cmd_list)+1];
+	int i = 0;
+
+	while(cmd_list[i] != NULL){ // for each cmd
+		char **cmd = tokenify(cmd_list[i],0); // list -> command
+		if(check_exit(cmd) == -1)
+			isExit = -1;
+	 
+		check_mode(cmd); 		
+		
+		pid_t child = fork();
+		if(child == 0){
+			execv(cmd[0],cmd);
+			exit(1);
+		} else {
+			child_pids[i] = child;
+		}
+		i++;	
+	}
+
+	child_pids[i] = 0; 
+	int wait_count = i;
+	i = 0;
+	int* status = NULL;
+
+	// wait on children
+	while(i < wait_count){
+		waitpid(child_pids[i], status,0);
+		i++;
+	}
+	return isExit;
+
+}
+
+int sequential(char **cmd_list){
+
+	int isExit = 0;
+    int i = 0;
+    while (cmd_list[i] != NULL){
+		char **cmd = tokenify(cmd_list[i],0);
+		if (check_exit(cmd) == -1){
+			isExit = -1;
+		}
+
+		char** mode_cmd = &cmd_list[i];
+		check_mode(mode_cmd);
+
+		pid_t child = fork();
+
+		if (child == 0){
+			execv(cmd[0], cmd);
+            exit(1);
+		}else{
+			int *status = NULL;
+            waitpid(child, status, 0);
+		}
+        i++;
+	}
+	return isExit;
+}
+
+
+int main(int argc, char* argv[]){
+
+	char *prompt = "mjng$ ";
+	int isExit = 0;
+
+	printf("%s", prompt);
+
+	fflush(stdout);
+	char buffer[1024];
+
+	while (fgets(buffer, 1024, stdin) != NULL){
+		char* str = remove_hash(buffer);
+	  	char** cmd_list = tokenify(str,1);
+	   	
+
+		char** cmd = &cmd_list[0];
+		if(check_mode(cmd) == 0){
+			printf("%s", prompt);
+			continue;
+		}
+		
+		if(mode == 0){ // sequential
+			isExit = sequential(cmd_list);
+
+			if( isExit == -1 && mode == 0)
+				break;
+	  		else if (isExit == -1 && mode == 1){
+	   			mode = 1;
+		   		break;
+			} else if (isExit == 0 && mode == 1){
+				mode = 1;
+	   		}
+		} else { // parallel
+			isExit = parallel(cmd_list);
+		
+			if ( isExit == -1 && mode == 1)
+		  		break;
+		 	else if (isExit == -1 && mode == 0){
+		     	mode = 0;
+		       	break;
+		  	}else if ( isExit == 0 && mode == 0){
+		    	mode = 0;
+		 	}	   	
+		}
+		printf("%s", prompt);
+	}
+    return 0;
 }
 
