@@ -103,6 +103,21 @@ int get_size(char** array){
 	return i;
 }
 
+char **remove_hash(char **cmd_list){
+	int i = 0;
+	while (cmd_list[i] != NULL){
+		if (cmd_list[i] == '#'){
+			cmd_list[i] = NULL;
+
+		}
+		i++;
+	}
+
+	return cmd_list;
+
+}
+
+
 void parallel(char **line, int* mode_choice) {
 
 	pid_t child;
@@ -163,7 +178,7 @@ int main(int argc, char **argv) {
 		if (mode_choice == 0){
 			sequential(line,mode_choicep);
 		} else {
-			parallel(line,mode_choicep);	
+			parallel(line,mode_choicep)
 		}
 	
 		
