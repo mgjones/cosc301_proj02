@@ -96,6 +96,7 @@ int parallel(char** cmd_list){
 	int isExit = 0;
 	pid_t child_pids[get_size(cmd_list)+1];
 	int i = 0;
+	// array of struct nodes -- linked list	
 
 	while(cmd_list[i] != NULL){ // for each cmd
 		char **cmd = tokenify(cmd_list[i],0); // list -> command
@@ -106,6 +107,8 @@ int parallel(char** cmd_list){
 		
 		pid_t child = fork();
 		if(child == 0){
+			// create new struct node -- malloc
+			// put struct node in a array
 			execv(cmd[0],cmd);
 			exit(1);
 		} else {
@@ -122,6 +125,7 @@ int parallel(char** cmd_list){
 	// wait on children
 	while(i < wait_count){
 		waitpid(child_pids[i], status,0);
+		// check if it's dead -- if yes print prompt
 		i++;
 	}
 	return isExit;
@@ -160,7 +164,8 @@ int main(int argc, char* argv[]){
 
 	char *prompt = "mjng$ ";
 	int isExit = 0;
-
+	int path_switch = 0; // 0 - expecting no path with command
+						 // 1 - expecting path with command
 	printf("%s", prompt);
 
 	fflush(stdout);
@@ -171,12 +176,23 @@ int main(int argc, char* argv[]){
 	  	char** cmd_list = tokenify(str,1);
 	   	
 
-		char** cmd = &cmd_list[0];
-		if(check_mode(cmd) == 0){
-			printf("%s", prompt);
-			continue;
+		char** cmd = &cmd_list[0];			// checks if command is mode
+		if(check_mode(cmd) == 0){			// if not then run command
+			printf("%s", prompt);			// if it is then skip unnecessary
+			continue;						// exec.
 		}
-		
+/*
+		while(!path_switch){
+			-- read each line of shell-config
+			-- append shell-config line before command given
+			-- test if command is in path (given by line) with stat
+			-- if it isn't in path continue to next line
+			-- if it is then assign cmd to "path"+command and break
+				-- now seq/par will get command with path
+			-- if no more lines to read prompt user that it couldn't find
+			 - t	
+		}
+*/
 		if(mode == 0){ // sequential
 			isExit = sequential(cmd_list);
 
