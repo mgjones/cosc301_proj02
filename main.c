@@ -96,7 +96,50 @@ char *remove_hash(char *buffer){
 
 }
 
-int parallel(char** cmd_list){
+// check_stat returns a new concatted string with path if stat
+// is successful. If not then it just returns the cmd that was
+// passed.
+char* check_stat(char** cmd, char** directory){
+	if(*cmd == NULL){
+		return *cmd;
+	}
+	char* new = NULL;
+	struct stat statresult; 
+	int i = 0;
+	int rv;
+	while( directory[i] != NULL){
+		char* new_str = strdup(directory[i]);
+		strcat(new_str, "/");
+		strcat(new_str, cmd[0]);
+		rv = stat(new_str, &statresult);
+		if (rv < 0){
+			i++;
+			free(new_str);
+			continue;
+		} else {
+			new = new_str;
+			break;
+		}
+	}// end while
+	
+	if( directory[i] == NULL){
+		return *cmd;
+	}
+
+	int k = 1;
+	while( cmd[k] != NULL){
+		strcat(new, " ");
+		strcat(new, cmd[k]);
+		k++;
+	}
+	free(*cmd);
+	return new;
+	
+}
+
+
+int parallel(char** cmd_list, char** directory){
+	int rv;
 	int isExit = 0;
 	pid_t child_pids[get_size(cmd_list)+1];
 	int i = 0;
@@ -110,8 +153,12 @@ int parallel(char** cmd_list){
 			isExit = -1;
 
 		// check for "mode"
-	 	char** mode_cmd = &cmd_list[i]; // two tokenifies -- one for check_exit
-		check_mode(mode_cmd); 			// and another for check_mode -- fix!
+		char** mode_cmd = &cmd_list[i];
+		int isMode = check_mode(mode_cmd);
+		if (isMode == 0){
+			i++;
+			continue;
+		}
 		
 		// check for "pause"
 
@@ -120,12 +167,29 @@ int parallel(char** cmd_list){
 		// check for "resume"
 		
 
-		// stat for current command -- if stat fails as is
-		// then go through list of directories and append to cmd
-		// then stat each command with new path appended
-		// if path+cmd is found -- exec that one immediately
-		// if not found -- prompt " file not found"
-		// then continue to next command
+		//	//	//	//	//	//	//	//	//	//	//	//	//	//	//	//		
+		char* new_cmd;
+		struct stat statresult;
+		rv = stat(*cmd, &statresult);
+		if(rv < 0){
+			
+			new_cmd = check_stat(cmd,directory);
+			if(new_cmd == NULL){
+				i++;
+				continue;
+			}
+			if(new_cmd[0] !='/' && new_cmd[0] != '.'){ // if no path match found
+				printf("command %s was not found: type full path for command\n",new_cmd);
+				i++;
+				continue;
+			} else { // if path match found	
+				cmd = tokenify(new_cmd,0);
+			}
+
+		} // end if
+
+		
+		//	//	//	//	//	//	//	//	//	//	//	//	//	//	//	//
 
 
 		pid_t child = fork();
@@ -157,19 +221,19 @@ int parallel(char** cmd_list){
 }
 
 int sequential(char **cmd_list, char** directory){
-
+	
 	int isExit = 0;
-    int i = 0;
-    while (cmd_list[i] != NULL){
+    int i = 0; 												// increment for each command
+	int rv;
+    while (cmd_list[i] != NULL){							// for every command
 
-		//char** super = &cmd_list[i];
-		char **cmd = tokenify(cmd_list[i],0);
+		char **cmd = tokenify(cmd_list[i],0); 				// tokenify for params
 
 		// check for "exit"
 		if (check_exit(cmd) == -1){
 			isExit = -1;
-			i++; 			// new lines: so we don't exec "exit" command
-			continue;		// new lines: ""							""
+			i++;
+			continue;
 		}
 
 		// check for "mode"
@@ -187,32 +251,27 @@ int sequential(char **cmd_list, char** directory){
 		// check for "resume"
 		
 		//	//	//	//	//	//	//	//	//	//	//	//	//	//	//	//		
-		
+		char* new_cmd;
 		struct stat statresult;
-		int rv = stat(*cmd, &statresult);
-		
-		if (rv < 0){
-			while (directory[i] != NULL){
-				char *path_cmd = malloc(strlen(directory[i]) + strlen(*cmd) + 1);
-				strcpy(path_cmd,directory[i]);
-				strcat(path_cmd,*cmd);
-				int ru = stat(path_cmd, &statresult);
-				if (ru == 0){
-					char *old_cmd = *cmd;
-					cmd = &path_cmd;
-					free(old_cmd);
-					break;
-				}
+		rv = stat(*cmd, &statresult);
+		if(rv < 0){
+			
+			new_cmd = check_stat(cmd,directory);
+			if(new_cmd == NULL){
 				i++;
-				free(path_cmd);
+				continue;
+			}
+			if(new_cmd[0] !='/' && new_cmd[0] != '.'){ // if no path match found
+				printf("command %s was not found: type full path for command\n",new_cmd);
+				i++;
+				continue;
+			} else { // if path match found	
+				cmd = tokenify(new_cmd,0);
 			}
 
-			if (directory[i] == NULL){
-				printf("The file does not exist.");
-				return isExit;
-			}
+		} // end if
 
-		}
+		
 		//	//	//	//	//	//	//	//	//	//	//	//	//	//	//	//
 		
 		
@@ -227,6 +286,7 @@ int sequential(char **cmd_list, char** directory){
             waitpid(child, status, 0);
 		}
         i++;
+
 	}
 	return isExit;
 }
@@ -262,26 +322,26 @@ int main(int argc, char* argv[]){
 	file = fopen("shell-config","r");
 	if(file == NULL){	
 		printf("could not find file \"shell-config\": input commands using full path name\n");
-		// path_switch = 1;		
 	}
 
+	// putting lines of directory in char** //
 	char line[1024];
 	int i = 0;
-
-	//char* directory[1024];
+	char** directory = malloc(1024 * 7);
 	while(fgets(line,1024,file) != NULL){
 		split(line);
-		directory[i] = line;
+		char* new_line = strdup(line); // don't forget to free all of this //	//	//	//	//	//	//	//	//	//	//	//	// //
+		directory[i] = new_line;
 		i++;
 	}
 	directory[i] = NULL;
-
 	fclose(file);
+	//	//	//	//	//	//	//	//	//	//	//
+
 	printf("%s", prompt);
 
 	fflush(stdout);
 	char buffer[1024];
-	
 
 	while (fgets(buffer, 1024, stdin) != NULL){
 		char* str = remove_hash(buffer);
@@ -293,8 +353,6 @@ int main(int argc, char* argv[]){
 			printf("%s", prompt);			// if it is then skip unnecessary
 			continue;						// exec.
 		}
-
-		
 
 
 		if(mode == 0){ // sequential
@@ -309,7 +367,7 @@ int main(int argc, char* argv[]){
 				mode = 1;
 	   		}
 		} else { // parallel
-			isExit = parallel(cmd_list);
+			isExit = parallel(cmd_list,directory);
 		
 			if ( isExit == -1 && mode == 1)
 		  		break;
@@ -325,3 +383,9 @@ int main(int argc, char* argv[]){
     return 0;
 }
 
+
+
+// current problems:
+//					wait... there are none!
+// 					
+//
