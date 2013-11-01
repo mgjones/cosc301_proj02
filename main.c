@@ -1,7 +1,7 @@
 //	//	//	//	//	//	//	//	//	//	//
 //										//
 //	By Mariah Jones and Nolan Gonzalez	//
-//			   cosc 301				    //
+//			   COSC 301				    //
 //										//
 //	//	//	//	//	//	//	//	//	//	//
 
@@ -49,7 +49,7 @@ void split(char* line){ // assuming shell-config is in correct format
 
 }
 
-char **tokenify(const char *str,int swap) {
+char **tokenify(const char *str,int swap) { // separates the command line into 'tokens'
 	const char *sep;
 
 	if(swap == 0){
@@ -74,7 +74,7 @@ char **tokenify(const char *str,int swap) {
 	return words;
 }
 
-int check_mode(char **line){
+int check_mode(char **line){ // check to see if mode is an input parameter of the command line
 
 	char** command = tokenify(line[0],0);
 
@@ -104,7 +104,7 @@ int check_mode(char **line){
 	return -1;
 }
 
-int check_exit(char** cmd){
+int check_exit(char** cmd){ // checks to see if exit is a parameter in the command line
 	if(cmd[0] == NULL){
 		return 0;
 	} else if(strncmp(cmd[0],"exit",4) == 0){
@@ -415,10 +415,10 @@ int main(int argc, char* argv[]){
    We didn't want to send this in really late so we compensated with this.
    Hopefuly this is enough to show our hardwork over 2 weeks of effort.
 
-   if we would've implemented background jobs:
+   If we would've implemented background jobs:
    We were going to implement a linked list of struct "nodes" to keep track
    of all the processes that were being executed (aside from mode, exit, pause
-   and resume). a "jobs" function would see if a user typed in jobs and just go
+   and resume). A "jobs" function would see if a user typed in jobs and just go
    through the linked list of process printing out all the information about each
    process (which is stored within each node, ie. command_name, pid, paused_state).
 
