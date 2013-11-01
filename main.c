@@ -1,3 +1,12 @@
+//	//	//	//	//	//	//	//	//	//	//
+//										//
+//	By Mariah Jones and Nolan Gonzalez	//
+//			   cosc 301				    //
+//										//
+//	//	//	//	//	//	//	//	//	//	//
+
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -12,7 +21,33 @@
 #include <poll.h>
 #include <signal.h>
 
-int mode = 0; // mode is set to sequential
+int mode = 0; // global variable mode is set to sequential
+
+int get_size(char** array){			// get's the size of an array (char**)
+	int i;
+	for(i=0;array[i] != NULL;i++){}
+	return i;
+}
+
+char *remove_hash(char *buffer){	// puts a null turmination
+	int i = 0;						// char where hash is
+	while (buffer[i] != '\0'){
+		if (buffer[i] == '#')
+			buffer[i] = '\0';
+		i++;
+	}
+	
+	return buffer;
+
+}
+
+void split(char* line){ // assuming shell-config is in correct format
+	int i = 0;
+	while(line[i] != '\n'){i++;}
+	line[i] = '\0';
+	return;
+
+}
 
 char **tokenify(const char *str,int swap) {
 	const char *sep;
@@ -40,8 +75,9 @@ char **tokenify(const char *str,int swap) {
 }
 
 int check_mode(char **line){
-	
+
 	char** command = tokenify(line[0],0);
+
 	if(command[0] == NULL){
 		return -1;
 	} else if (strncmp(command[0],"mode",4) == 0) {
@@ -55,7 +91,7 @@ int check_mode(char **line){
 				}
 			} else {
 				// there is a parameter
-				if (strncmp(command[1], "sequential", 10) == 0 || strncmp(command[1], "s", 1) == 0){ // test this throughly
+				if (strncmp(command[1], "sequential", 10) == 0 || strncmp(command[1], "s", 1) == 0){
 					mode = 0;
 					return 0;
 				} else if (strncmp(command[1], "parallel", 8) == 0 || strncmp(command[1], "p", 1) == 0){
@@ -77,32 +113,20 @@ int check_exit(char** cmd){
 	return 0;
 }
 
-int get_size(char** array){
-	int i;
-	for(i=0;array[i] != NULL;i++){}
-	return i;
-}
+// define check_pause function
+//
 
-char *remove_hash(char *buffer){
-	int i = 0;
-	while (buffer[i] != '\0'){
-		if (buffer[i] == '#'){
-			buffer[i] = '\0';
-		}
-		i++;
-	}
-	
-	return buffer;
+// define check_resume function
+//
 
-}
 
 // check_stat returns a new concatted string with path if stat
-// is successful. If not then it just returns the cmd that was
-// passed.
+// is successful. If not then it just returns the cmd that was passed
 char* check_stat(char** cmd, char** directory){
 	if(*cmd == NULL){
 		return *cmd;
-	}
+	} 
+
 	char* new = NULL;
 	struct stat statresult; 
 	int i = 0;
@@ -138,19 +162,23 @@ char* check_stat(char** cmd, char** directory){
 }
 
 
+
 int parallel(char** cmd_list, char** directory){
+
 	int rv;
 	int isExit = 0;
-	pid_t child_pids[get_size(cmd_list)+1];
+	pid_t child_pids[get_size(cmd_list)+1];	// array of struct nodes -- linked list	
 	int i = 0;
-	// array of struct nodes -- linked list	
 
 	while(cmd_list[i] != NULL){ // for each cmd
 		
 		// check for "exit"
 		char **cmd = tokenify(cmd_list[i],0); // list -> command
-		if(check_exit(cmd) == -1)
+		if(check_exit(cmd) == -1){
 			isExit = -1;
+			i++;
+			continue;
+		}
 
 		// check for "mode"
 		char** mode_cmd = &cmd_list[i];
@@ -166,8 +194,7 @@ int parallel(char** cmd_list, char** directory){
 
 		// check for "resume"
 		
-
-		//	//	//	//	//	//	//	//	//	//	//	//	//	//	//	//		
+	
 		char* new_cmd;
 		struct stat statresult;
 		rv = stat(*cmd, &statresult);
@@ -188,16 +215,10 @@ int parallel(char** cmd_list, char** directory){
 
 		} // end if
 
-		
-		//	//	//	//	//	//	//	//	//	//	//	//	//	//	//	//
-
 
 		pid_t child = fork();
 		if(child == 0){
-			// create new struct node -- malloc
-			// put struct node in a array
 			execv(cmd[0],cmd);
-			// free cmd after exec
 			exit(1);
 		} else {
 			child_pids[i] = child;
@@ -209,12 +230,25 @@ int parallel(char** cmd_list, char** directory){
 	int wait_count = i;
 	i = 0;
 	int* status = NULL;
+	int* astatus = NULL;
+	int astat = 0;
 
-	// wait on children
-	while(i < wait_count){
-		waitpid(child_pids[i], status,0);
-		// check if it's dead -- if yes print prompt
-		i++;
+	pid_t accident = fork(); // the accident child will do the waiting for the other children
+							 // while the parent exits and goes back to user prompt
+	if(accident == 0){
+		// wait on children
+		while(i < wait_count){
+			while(1){
+				astat = waitpid(child_pids[i], status,0);
+				if(astat > 0){								
+					printf("Process %d completed.\n",child_pids[i]);
+					break;
+				}
+			}
+			i++;
+		}
+	} else { // parent
+		waitpid(accident, astatus, WNOHANG);
 	}
 	return isExit;
 
@@ -250,7 +284,7 @@ int sequential(char **cmd_list, char** directory){
 
 		// check for "resume"
 		
-		//	//	//	//	//	//	//	//	//	//	//	//	//	//	//	//		
+
 		char* new_cmd;
 		struct stat statresult;
 		rv = stat(*cmd, &statresult);
@@ -270,16 +304,12 @@ int sequential(char **cmd_list, char** directory){
 			}
 
 		} // end if
-
-		
-		//	//	//	//	//	//	//	//	//	//	//	//	//	//	//	//
 		
 		
 		pid_t child = fork();
 
 		if (child == 0){
 			execv(cmd[0], cmd);
-			// free cmd
             exit(1);
 		}else{
 			int *status = NULL;
@@ -295,7 +325,6 @@ int isBuilt_in(char *cmd){
 	if(cmd == NULL){
 		return 0;
 	} else if (strncmp(cmd, "mode", 4) == 0 || strncmp(cmd,"exit", 4) == 0 || strncmp(cmd, "pause", 5) == 0 || strncmp(cmd, "resume", 6) == 0){
-		// might still be a segfault if user types in something like "asd" or "as" etc.
 		return 1;
 	} else {
      	return 0;
@@ -303,13 +332,7 @@ int isBuilt_in(char *cmd){
 }
  
 
-void split(char* line){ // assuming shell-config is in correct format
-	int i = 0;
-	while(line[i] != '\n'){i++;}
-	line[i] = '\0';
-	return;
 
-}
 
 int main(int argc, char* argv[]){
 
@@ -330,7 +353,7 @@ int main(int argc, char* argv[]){
 	char** directory = malloc(1024 * 7);
 	while(fgets(line,1024,file) != NULL){
 		split(line);
-		char* new_line = strdup(line); // don't forget to free all of this //	//	//	//	//	//	//	//	//	//	//	//	// //
+		char* new_line = strdup(line);
 		directory[i] = new_line;
 		i++;
 	}
@@ -348,10 +371,10 @@ int main(int argc, char* argv[]){
 	  	char** cmd_list = tokenify(str,1);
 	   	
 
-		char** cmd = &cmd_list[0];			// checks if command is mode
-		if(check_mode(cmd) == 0){			// if not then run command
-			printf("%s", prompt);			// if it is then skip unnecessary
-			continue;						// exec.
+		char** cmd = &cmd_list[0];			// checks if command is mode	  //
+		if(check_mode(cmd) == 0){			// if not then run command		  //
+			printf("%s", prompt);			// if it is then skip unnecessary //
+			continue;						// exec.						  //
 		}
 
 
@@ -380,12 +403,29 @@ int main(int argc, char* argv[]){
 		}
 		printf("%s", prompt);
 	}
+	i = 0;
+	while(directory[i] != NULL){	// free all strings in directory //
+		free(directory[i]);			// before exiting out of program //
+		i++;
+	}
     return 0;
 }
 
+/*
+   We didn't want to send this in really late so we compensated with this.
+   Hopefuly this is enough to show our hardwork over 2 weeks of effort.
+
+   if we would've implemented background jobs:
+   We were going to implement a linked list of struct "nodes" to keep track
+   of all the processes that were being executed (aside from mode, exit, pause
+   and resume). a "jobs" function would see if a user typed in jobs and just go
+   through the linked list of process printing out all the information about each
+   process (which is stored within each node, ie. command_name, pid, paused_state).
+
+   a pause function would see if the user put in "pause". If so then we would
+   do kill(pid, SIGSTOP) on the pid that was paused...same thing for resume function
+   but with kill(pid, SIGCONT).
 
 
-// current problems:
-//					wait... there are none!
-// 					
-//
+
+*/
